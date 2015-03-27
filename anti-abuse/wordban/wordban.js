@@ -12,13 +12,13 @@ module.exports = function(core, conf) {
 	init();
 	core.on('text', function(message, callback) {
 		var room = message.room,
-			text, customPhrases, textMessage, textArray;
+			text, customPhrases, textMessage, textArray, title, titleArray;
 		log("Heard \"text\" event");
 		text = message.text;
 		if (room.params && room.params.antiAbuse && room.params.antiAbuse.spam) {
 			if (room.params.antiAbuse.block && room.params.antiAbuse.block.english) {
-				if (rejectable(text)) {
-					message.labels.abusive = 1;
+				if (rejectable(text) || (message.title && rejectable(message.title))) {
+					(message.tags = message.tags || []).push('abusive', 'hidden');
 					log(message);
 					return callback();
 				}
@@ -28,13 +28,15 @@ module.exports = function(core, conf) {
 				customPhrases = message.room.params.antiAbuse.customPhrases;
 				textMessage = message.text.toLowerCase();
 				textArray = suffixArray(textMessage);
+				title = message.title.toLowerCase();
+				titleArray = suffixArray(title);
 				for (var i = 0; i < customPhrases.length; i++) {
 					var phrase = customPhrases[i];
 					if (phrase) {//phrase can not be empty string.
-						var r = search(textMessage, textArray, phrase);
-						if (r >= 0 && isSeparated(text, r, r + phrase.length - 1)) {
+						var r = search(textMessage, textArray, phrase), t = search(title, titleArray, phrase);
+						if (r >= 0 && isSeparated(text, r, r + phrase.length - 1) || t >= 0 && isSeparated(message.title, t, t + phrase.length - 1)) {
 							log.d("Found phrase: ", phrase);
-							message.labels.abusive = 1;
+							(message.tags = message.tags || []).push('abusive', 'hidden');
 							return callback();
 						}
 					}
